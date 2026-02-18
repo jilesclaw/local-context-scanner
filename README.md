@@ -1,28 +1,53 @@
 # Local Context Scanner
 
-## Concept
-A lightweight, local-first tool designed to pre-process codebases and documents for LLM context optimization.
+A lightweight, local-first tool designed to pre-process codebases and retrieve relevant context for LLMs.
 
 ## Problem
-Feeding entire files or large directories to powerful (cloud-based) LLMs is:
-1.  **Expensive:** Token costs add up.
-2.  **Slow:** Uploading and processing large contexts takes time.
-3.  **Noisy:** Irrelevant code distracts the model, leading to hallucinations or missed instructions.
-4.  **Privacy:** Sensitive code should stay local whenever possible.
+Feeding entire files or large directories to powerful (cloud-based) LLMs is expensive, slow, and noisy.
 
 ## Solution
-A small, local LLM or embedding model runs on consumer hardware (CPU/RAM friendly) to scan files and extract *only* the relevant snippets needed for a specific task.
+This tool scans your local codebase, chunks files, and stores embeddings in a local vector database (`ChromaDB`). You can then:
+1.  **Search:** Find the exact code snippets relevant to your query.
+2.  **Ask:** Retrieve context and send it to a local/remote LLM (Ollama) for an answer.
 
-### Key Features
-*   **Local Execution:** Runs entirely on the user's machine.
-*   **Low Resource Usage:** Target < 8GB RAM (compatible with quantized 3B-7B models or embedding models).
-*   **Precision Retrieval:** Identifies relevant functions, classes, or documentation based on the user's prompt.
-*   **Context Minification:** Sends only the necessary lines to the primary "smart" model (e.g., GPT-4, Claude 3, Gemini Pro).
+## Installation
 
-## Architecture Ideas
-*   **Embeddings:** Use `all-MiniLM-L6-v2` or similar lightweight embedding models for semantic search.
-*   **Small LLM:** Use quantized (4-bit/5-bit) models like Llama-3-8B, Mistral-7B, or Qwen-2.5-1.5B for summarization and extraction.
-*   **Tooling:** Python/Go wrapper to handle file I/O and model interfacing (via `ollama`, `llama.cpp`, or `onnx`).
+```bash
+git clone https://github.com/jilesclaw/local-context-scanner.git
+cd local-context-scanner
+pip install -r requirements.txt
+```
 
-## Goal
-Drastically reduce token usage and improve answer quality by curating context *before* it leaves the local machine.
+## Usage
+
+### 1. Index a Directory
+Scan your project to build the vector database.
+```bash
+python src/scanner.py index /path/to/your/project
+```
+
+### 2. Search for Code (Retrieve Only)
+Find the top 3 relevant chunks and see the project structure.
+```bash
+python src/scanner.py search "how does authentication work?"
+```
+
+### 3. Ask an LLM (RAG)
+Retrieve context and send it to a local/remote Ollama instance.
+```bash
+python src/scanner.py ask "how does authentication work?" \
+  --url http://localhost:11434 \
+  --model mistral \
+  --max-tokens 4096
+```
+
+## Features
+*   **Hybrid Search:** Combines semantic search (embeddings) with file tree structure.
+*   **Smart Context Filling:** Automatically fills the LLM's context window with as many relevant chunks as possible (up to `--max-tokens`).
+*   **Remote LLM Support:** Compatible with Ollama (local or remote server).
+*   **Privacy First:** Your code never leaves your network.
+
+## Architecture
+*   **Database:** ChromaDB (Local vector store)
+*   **Embeddings:** `all-MiniLM-L6-v2` (Fast, runs on CPU)
+*   **LLM Client:** Python `requests` to Ollama API
